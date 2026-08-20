@@ -1,0 +1,22 @@
+# Python Cache
+__pycache__/
+*.py[cod]
+*.class
+*.pyd
+
+# Local AWS Simulator Mock Storage
+mock_s3/
+test_s3/
+mock_dynamodb.json
+test_dynamodb.json
+mock_alerts.json
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# OS specific files
+.DS_Store
+Thumbs.db

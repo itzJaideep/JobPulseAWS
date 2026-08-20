@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobPulse AWS - Live Fresher Jobs & Automation Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- CSS Style -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="glass-bg"></div>
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo">
+                <i class="fa-solid fa-cloud-bolt icon-gradient"></i>
+                <h1>JobPulse<span>AWS</span></h1>
+            </div>
+            <div class="badge">Live Fresher Job Tracker</div>
+        </header>
+
+        <!-- Main Search Section -->
+        <section class="search-section">
+            <h2>Live Job Finder</h2>
+            <p class="subtitle">Search live corporate fresher jobs across India. Instantly analyze salary brackets, check employer ratings, and automate job feeds to your email.</p>
+            
+            <form id="search-form" class="search-container">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="search-query" placeholder="Enter job role or keywords (e.g., Python Developer, Sales associate, HR Executive)..." required autocomplete="off">
+                <button type="submit" id="search-btn">
+                    <span>Find Live Jobs</span>
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </form>
+
+            <div class="suggestions-tags">
+                <span class="tag-label">Popular Searches:</span>
+                <button class="suggest-tag">Sales jobs</button>
+                <button class="suggest-tag">AI developer jobs</button>
+                <button class="suggest-tag">HR manager jobs</button>
+                <button class="suggest-tag">Finance associate jobs</button>
+                <button class="suggest-tag">Software engineer jobs</button>
+            </div>
+        </section>
+
+        <!-- EventBridge Scheduler Card (Automated Alerts) -->
+        <section class="scheduler-section card">
+            <div class="scheduler-header">
+                <div class="scheduler-title">
+                    <i class="fa-solid fa-calendar-days icon-gradient"></i>
+                    <h3>Automated Job Feeds</h3>
+                </div>
+                <span class="scheduler-badge" id="scheduler-status">Active Feeds: 0</span>
+            </div>
+            <div class="scheduler-body">
+                <p class="scheduler-desc">Set up automated background searches. Our cloud engine will poll live openings and notify you of new matches at your email address.</p>
+                
+                <form id="scheduler-form" class="scheduler-controls">
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-keyboard"></i>
+                        <input type="text" id="schedule-query-input" placeholder="Job Role to automate (e.g. Python Developer)" required>
+                    </div>
+                    
+                    <div class="select-wrapper">
+                        <i class="fa-solid fa-clock"></i>
+                        <!-- Hidden native select for compatibility with app.js value retrieval -->
+                        <select id="schedule-rate-select" style="display: none;">
+                            <option value="15">Every 15 Seconds (Demo Mode)</option>
+                            <option value="30" selected>Every 30 Seconds (Demo Mode)</option>
+                            <option value="60">Every 1 Minute (Demo Mode)</option>
+                            <option value="86400">Daily Updates (0 0 * * ?)</option>
+                            <option value="604800">Weekly Updates (0 0 ? * SUN)</option>
+                        </select>
+                        
+                        <!-- Custom UI Dropdown wrapper -->
+                        <div class="custom-dropdown" id="custom-duration-dropdown">
+                            <div class="custom-dropdown-trigger" id="custom-dropdown-trigger">
+                                <span id="custom-dropdown-selected-text">Every 30 Seconds (Demo Mode)</span>
+                                <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                            </div>
+                            <div class="custom-dropdown-menu hidden" id="custom-dropdown-menu">
+                                <div class="custom-dropdown-item" data-value="15">Every 15 Seconds (Demo Mode)</div>
+                                <div class="custom-dropdown-item active" data-value="30">Every 30 Seconds (Demo Mode)</div>
+                                <div class="custom-dropdown-item" data-value="60">Every 1 Minute (Demo Mode)</div>
+                                <div class="custom-dropdown-item" data-value="86400">Daily Updates (0 0 * * ?)</div>
+                                <div class="custom-dropdown-item" data-value="604800">Weekly Updates (0 0 ? * SUN)</div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-envelope"></i>
+                        <input type="email" id="schedule-email-input" placeholder="Alert Recipient Email" required>
+                    </div>
+                    
+                    <button type="submit" id="create-schedule-btn">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Activate Job Alert</span>
+                    </button>
+                </form>
+
+                <!-- Active schedules display list -->
+                <div class="active-schedules-box">
+                    <h4>Active Scheduled Job Feeds</h4>
+                    <div class="schedules-list" id="schedules-list">
+                        <p class="no-schedules-msg">No active job alerts configured. Set up a feed above!</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- DynamoDB Database Directory (History) -->
+        <section class="dynamodb-directory card">
+            <div class="card-header">
+                <h3><i class="fa-solid fa-server icon-gradient"></i> Search History & Cache Directory</h3>
+                <button id="refresh-directory-btn" class="refresh-dir-btn">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                    <span>Refresh History</span>
+                </button>
+            </div>
+            <div class="directory-body">
+                <p class="dir-desc">Browse previously completed search terms and automated feeds in the local cloud database cache. Click any item to load the reports.</p>
+                <div class="datasets-grid" id="datasets-grid">
+                    <p class="no-datasets-msg">No history found in database. Search above or configure a background feed!</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pipeline Tracking Flow (Crawler Status Node visualization) -->
+        <section id="pipeline-section" class="pipeline-section card hidden">
+            <h3><i class="fa-solid fa-circle-notch fa-spin"></i> Live Search Engine Status</h3>
+            <div class="pipeline-flow">
+                <div class="pipeline-step" id="step-gateway">
+                    <div class="step-icon"><i class="fa-solid fa-network-wired"></i></div>
+                    <div class="step-name">API Gateway</div>
+                    <div class="step-status">Pending</div>
+                </div>
+                <div class="pipeline-connector"></div>
+                <div class="pipeline-step" id="step-sqs">
+                    <div class="step-icon"><i class="fa-solid fa-list-check"></i></div>
+                    <div class="step-name">SQS Request Queue</div>
+                    <div class="step-status">Pending</div>
+                </div>
+                <div class="pipeline-connector"></div>
+                <div class="pipeline-step" id="step-scraper">
+                    <div class="step-icon"><i class="fa-solid fa-spider"></i></div>
+                    <div class="step-name">Live Scraper Agent</div>
+                    <div class="step-status">Pending</div>
+                </div>
+                <div class="pipeline-connector"></div>
+                <div class="pipeline-step" id="step-s3">
+                    <div class="step-icon"><i class="fa-solid fa-database"></i></div>
+                    <div class="step-name">S3 Cloud Storage</div>
+                    <div class="step-status">Pending</div>
+                </div>
+                <div class="pipeline-connector"></div>
+                <div class="pipeline-step" id="step-transformer">
+                    <div class="step-icon"><i class="fa-solid fa-gears"></i></div>
+                    <div class="step-name">ETL Processing Engine</div>
+                    <div class="step-status">Pending</div>
+                </div>
+                <div class="pipeline-connector"></div>
+                <div class="pipeline-step" id="step-dynamo">
+                    <div class="step-icon"><i class="fa-solid fa-table"></i></div>
+                    <div class="step-name">DynamoDB Database</div>
+                    <div class="step-status">Pending</div>
+                </div>
+            </div>
+            <div class="pipeline-logs" id="pipeline-logs">
+                <p class="log-entry">Waiting for search query...</p>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section id="results-section" class="results-section hidden">
+            <!-- Smart Recommendations / Highlights -->
+            <div class="highlights-grid" id="highlights-container">
+                <!-- Dynamically loaded -->
+            </div>
+
+            <!-- Dashboard Analytics Grid -->
+            <div class="dashboard-grid">
+                <!-- Visual Chart Card -->
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-chart-line icon-gradient"></i> Salary Distribution Analytics</h3>
+                        <span id="chart-metric-label">Salary Brackets</span>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="analytics-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Entity / Sentiment Analysis -->
+                <div class="card sentiment-card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-brain icon-gradient"></i> AI Keyword & Sentiment Insights</h3>
+                    </div>
+                    <div class="sentiment-stats" id="sentiment-insights">
+                        <!-- Dynamically loaded -->
+                    </div>
+                </div>
+
+                <!-- Live Scraper Performance & Health Metrics -->
+                <div class="card metrics-card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-gauge-high icon-gradient"></i> System Performance Metrics</h3>
+                        <span class="health-pulse-container"><span class="health-pulse"></span> Active</span>
+                    </div>
+                    <div class="metrics-body" id="pipeline-metrics">
+                        <!-- Dynamically loaded -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Scraped Items Table -->
+            <div class="card table-card">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-list-ul icon-gradient"></i> Verified Job Listings</h3>
+                    <div class="table-actions">
+                        <button id="export-csv-btn" class="export-btn"><i class="fa-solid fa-file-csv"></i> Save as CSV</button>
+                        <button id="export-json-btn" class="export-btn"><i class="fa-solid fa-file-lines"></i> Save as JSON</button>
+                        <span class="record-count" id="record-count">0 listings available</span>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="scraped-table">
+                        <thead>
+                            <tr id="table-headers">
+                                <!-- Dynamically loaded -->
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- Dynamically loaded -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <footer>
+        <p>&copy; 2026 JobPulse AWS Tracker. Powered by automated serverless cloud pipelines.</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

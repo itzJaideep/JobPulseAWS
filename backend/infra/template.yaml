@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: >
+  AWS Serverless Web Scraper & Analytics Dashboard
+  Automates web scraping via API Gateway -> SQS -> Lambda Scraper -> S3 -> Lambda Transformer -> DynamoDB.
+
+Globals:
+  Function:
+    Timeout: 60
+    Runtime: python3.9
+    MemorySize: 256
+    Environment:
+      Variables:
+        DYNAMODB_TABLE: !Ref ScrapedResultsTable
+        RAW_S3_BUCKET: !Ref RawScrapedDataBucket
+        SQS_QUEUE_URL: !Ref ScrapeJobsQueue
+
+Resources:
+  # 1. DynamoDB Table for Structured Data
+  ScrapedResultsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ScrapedResultsTable
+      AttributeDefinitions:
+        - AttributeName: SearchQuery
+          AttributeType: S
+        - AttributeName: ItemId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: SearchQuery
+          KeyType: HASH
+        - AttributeName: ItemId
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  # 2. S3 Bucket for Raw Scraped Data
+  RawScrapedDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "aws-scraper-raw-${AWS::AccountId}-${AWS::Region}"
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: raw/
+                  - Name: suffix
+                    Value: .json
+            Function: !GetAtt TransformerFunction.Arn
+
+  # 3. SQS Queue for Buffering Scraping Requests
+  ScrapeJobsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ScrapeJobsQueue
+      VisibilityTimeout: 180 # Matches scraper function timeout (or greater)
+
+  # 4. Lambda Function: API Handler
+  ApiHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambda/api_handler/
+      Handler: lambda_function.lambda_handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ScrapedResultsTable
+      Events:
+        SearchApi:
+          Type: Api
+          Properties:
+            Path: /search
+            Method: get
+
+  # 5. Lambda Function: Scraper
+  ScraperFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambda/scraper/
+      Handler: lambda_function.lambda_handler
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref RawScrapedDataBucket
+      Events:
+        QueueTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ScrapeJobsQueue.Arn
+            BatchSize: 1
+
+  # 6. Lambda Function: Transformer
+  TransformerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambda/transformer/
+      Handler: lambda_function.lambda_handler
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref RawScrapedDataBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ScrapedResultsTable
+
+  # 7. S3 Permission for Transformer Lambda execution
+  S3BucketPermissionForTransformer:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref TransformerFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !GetAtt RawScrapedDataBucket.Arn
+
+Outputs:
+  SearchApiUrl:
+    Description: "API Gateway endpoint URL for Search API"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/search"
+  RawS3BucketName:
+    Description: "Raw data S3 Bucket Name"
+    Value: !Ref RawScrapedDataBucket
+  DynamoDbTableName:
+    Description: "DynamoDB Table Name"
+    Value: !Ref ScrapedResultsTable
